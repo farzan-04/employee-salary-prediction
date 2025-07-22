@@ -25,6 +25,7 @@ This project predicts employee salaries based on job description, years of exper
 
 
 🧠 Models Used
+
 Random Forest Regressor: For baseline performance
 
 Neural Network: For improved performance and deeper feature learning
