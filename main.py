@@ -5,7 +5,7 @@ from sklearn.feature_extraction.text import CountVectorizer
 import numpy as np
 
 # Load dataset
-data = pd.read_csv('employee_data.csv')
+data = pd.read_csv('adult 3.csv')
 
 # Data cleaning
 data.dropna(inplace=True)
