@@ -1,83 +1,62 @@
+import streamlit as st
 import pandas as pd
+import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.feature_extraction.text import CountVectorizer
-import numpy as np
-
-# Load dataset
-data = pd.read_csv('employee_data.csv')
-
-# Data cleaning
-data.dropna(inplace=True)
-
-# Text processing for job descriptions
-vectorizer = CountVectorizer(stop_words='english')
-X_text = vectorizer.fit_transform(data['JobDescription'])
-
-# Combine numerical features with text features
-X_num = data[['YearsExperience', 'EducationLevel']]
-X = np.hstack((X_num, X_text.toarray()))
-
-# Target variable
-y = data['Salary']
-
-# Train-test split
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error
-
-# Initialize and train the model
-rf_model = RandomForestRegressor(n_estimators=100, random_state=42)
-rf_model.fit(X_train, y_train)
-
-# Predictions
-y_pred = rf_model.predict(X_test)
-
-# Evaluation
-rmse = np.sqrt(mean_squared_error(y_test, y_pred))
-print(f'Random Forest RMSE: {rmse:.2f}')
-
-
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense
 
-# Build the neural network
-nn_model = Sequential()
-nn_model.add(Dense(64, activation='relu', input_dim=X_train.shape[1]))
-nn_model.add(Dense(32, activation='relu'))
-nn_model.add(Dense(1, activation='linear'))
+# Load dataset
+@st.cache_data
+def load_data():
+    return pd.read_csv("employee_data.csv")
 
-# Compile the model
-nn_model.compile(optimizer='adam', loss='mean_squared_error')
+data = load_data()
 
-# Train the model
-nn_model.fit(X_train, y_train, epochs=50, batch_size=32, validation_split=0.2)
+# Clean and preprocess
+data.dropna(inplace=True)
 
-# Predictions
-y_pred_nn = nn_model.predict(X_test)
+# Encode education level to numeric
+edu_map = {'High School': 0, 'Bachelor': 1, 'Master': 2, 'PhD': 3}
+data['EducationLevel'] = data['EducationLevel'].map(edu_map)
 
-# Evaluation
-rmse_nn = np.sqrt(mean_squared_error(y_test, y_pred_nn))
-print(f'Neural Network RMSE: {rmse_nn:.2f}')
+# Vectorize text
+vectorizer = CountVectorizer(stop_words='english')
+X_text = vectorizer.fit_transform(data['JobDescription'])
 
+# Combine features
+X_num = data[['YearsExperience', 'EducationLevel']].values
+X = np.hstack((X_num, X_text.toarray()))
+y = data['Salary'].values
 
-import streamlit as st
+# Train/Test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-st.title('Employee Salary Prediction')
+# Train Random Forest
+rf_model = RandomForestRegressor(n_estimators=100, random_state=42)
+rf_model.fit(X_train, y_train)
 
-# Input fields
-years_experience = st.number_input('Years of Experience', min_value=0)
-education_level = st.selectbox('Education Level', ['High School', 'Bachelor', 'Master', 'PhD'])
-job_description = st.text_area('Job Description')
+# Evaluate
+y_pred = rf_model.predict(X_test)
+rmse = np.sqrt(mean_squared_error(y_test, y_pred))
+
+# Streamlit App
+st.title("Employee Salary Prediction")
+st.markdown(f"**Model Accuracy (Random Forest RMSE):** ${rmse:,.2f}")
+
+# User input
+st.header("Enter Employee Info")
+years_experience = st.number_input("Years of Experience", min_value=0, max_value=50)
+education_level = st.selectbox("Education Level", ['High School', 'Bachelor', 'Master', 'PhD'])
+job_description = st.text_area("Job Description")
 
 # Predict button
-if st.button('Predict Salary'):
-    # Preprocess input and make prediction
-    input_data = np.array([[years_experience, education_level, job_description]])
-    input_vectorized = vectorizer.transform(input_data[:, 2])
-    input_combined = np.hstack((input_data[:, :2], input_vectorized.toarray()))
-    
-    salary_prediction = rf_model.predict(input_combined)
-    st.write(f'Predicted Salary: ${salary_prediction[0]:,.2f}')
-
+if st.button("Predict Salary"):
+    edu_level_num = edu_map[education_level]
+    text_features = vectorizer.transform([job_description])
+    combined_input = np.hstack(([years_experience, edu_level_num], text_features.toarray()))
+    prediction = rf_model.predict([combined_input[0]])
+    st.success(f"Predicted Salary: ${prediction[0]:,.2f}")
