@@ -57,6 +57,10 @@ job_description = st.text_area("Job Description")
 if st.button("Predict Salary"):
     edu_level_num = edu_map[education_level]
     text_features = vectorizer.transform([job_description])
-    combined_input = np.hstack(([years_experience, edu_level_num], text_features.toarray()))
+    combined_input = np.hstack((
+        np.array([[years_experience, edu_level_num]]),  # Reshape to 2D
+        text_features.toarray()
+    ))
+
     prediction = rf_model.predict([combined_input[0]])
     st.success(f"Predicted Salary: ${prediction[0]:,.2f}")
